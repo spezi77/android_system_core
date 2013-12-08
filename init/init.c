@@ -1057,25 +1057,6 @@ int audit_callback(void *data, security_class_t cls, char *buf, size_t len)
     return 0;
 }
 
-static void selinux_initialize(void)
-{
-    if (selinux_is_disabled()) {
-        return;
-    }
-
-    INFO("loading selinux policy\n");
-    if (selinux_android_load_policy() < 0) {
-        ERROR("SELinux: Failed to load policy; rebooting into recovery mode\n");
-        android_reboot(ANDROID_RB_RESTART2, 0, "recovery");
-        while (1) { pause(); }  // never reached
-    }
-
-    selinux_init_all_handles();
-    bool is_enforcing = selinux_is_enforcing();
-    INFO("SELinux: security_setenforce(%d)\n", is_enforcing);
-    security_setenforce(is_enforcing);
-}
-
 static int charging_mode_booting(void)
 {
 #ifndef BOARD_CHARGING_MODE_BOOTING_LPM
@@ -1093,6 +1074,25 @@ static int charging_mode_booting(void)
     close(f);
     return ('1' == cmb);
 #endif
+}
+
+static void selinux_initialize(void)
+{
+    if (selinux_is_disabled()) {
+        return;
+    }
+
+    INFO("loading selinux policy\n");
+    if (selinux_android_load_policy() < 0) {
+        ERROR("SELinux: Failed to load policy; rebooting into recovery mode\n");
+        android_reboot(ANDROID_RB_RESTART2, 0, "recovery");
+        while (1) { pause(); }  // never reached
+    }
+
+    selinux_init_all_handles();
+    bool is_enforcing = selinux_is_enforcing();
+    INFO("SELinux: security_setenforce(%d)\n", is_enforcing);
+    security_setenforce(is_enforcing);
 }
 
 int main(int argc, char **argv)
