@@ -968,8 +968,8 @@ static void process_key(struct charger *charger, int code, int64_t now)
                 } else {
                     reset_animation(batt_anim);
                     charger->next_screen_transition = -1;
-                    gr_fb_blank(true);
                     set_backlight(false);
+                    gr_fb_blank(true);
                     if (charger->num_supplies_online > 0)
                         request_suspend(true);
                 }
