@@ -479,6 +479,7 @@ static void check_fs(char *blk_device, char *fs_type, char *target)
          * fix the filesystem.
          */
         ret = mount(blk_device, target, fs_type, tmpmnt_flags, tmpmnt_opts);
+        INFO("%s(): mount(%s,%s,%s)=%d\n", __func__, blk_device, target, fs_type, ret);
         if (!ret) {
             umount(target);
         }
@@ -557,15 +558,16 @@ static void fs_set_blk_ro(const char *blockdev)
  * See "man 2 mount" for return values.
  */
 static int __mount(const char *source, const char *target,
-                   const char *filesystemtype, unsigned long mountflags,
-                   const void *data)
+                   const struct fstab_rec *rec)
 {
-    int ret = mount(source, target, filesystemtype, mountflags, data);
+    int ret = mount(source, target, rec->fs_type, rec->flags, rec->fs_options);
+    int save_errno = errno;
+    INFO("%s(source=%s,target=%s,type=%s)=%d\n", __func__, source, target, rec->fs_type, ret);
 
-    if ((ret == 0) && (mountflags & MS_RDONLY) != 0) {
+    if ((ret == 0) && (rec->flags & MS_RDONLY) != 0) {
         fs_set_blk_ro(source);
     }
-
+    errno = save_errno;
     return ret;
 }
 
@@ -598,13 +600,18 @@ static int device_is_debuggable() {
     return strcmp(value, "1") ? 0 : 1;
 }
 
+/* When multiple fstab records share the same mount_point, it will
+ * try to mount each one in turn, and ignore any duplicates after a
+ * first successful mount.
+ */
 int fs_mgr_mount_all(struct fstab *fstab)
 {
-    int i = 0;
+    int i = 0, j = 0;
     int encryptable = 0;
     int error_count = 0;
-    int mret;
-    int mount_errno;
+    int mret = -1;
+    int mount_errno = 0;
+    const char *last_ok_mount_point = NULL;
 
     if (!fstab) {
         return -1;
@@ -627,11 +634,6 @@ int fs_mgr_mount_all(struct fstab *fstab)
             wait_for_file(fstab->recs[i].blk_device, WAIT_TIMEOUT);
         }
 
-        if (fstab->recs[i].fs_mgr_flags & MF_CHECK) {
-            check_fs(fstab->recs[i].blk_device, fstab->recs[i].fs_type,
-                     fstab->recs[i].mount_point);
-        }
-
         if ((fstab->recs[i].fs_mgr_flags & MF_VERIFY) &&
             !device_is_debuggable()) {
             if (fs_mgr_setup_verity(&fstab->recs[i]) < 0) {
@@ -640,17 +642,44 @@ int fs_mgr_mount_all(struct fstab *fstab)
             }
         }
 
-        mret = __mount(fstab->recs[i].blk_device, fstab->recs[i].mount_point,
-                       fstab->recs[i].fs_type, fstab->recs[i].flags,
-                       fstab->recs[i].fs_options);
+        /* Don't try to mount the same mount point again.
+         * Deal with alternate entries for the same point which are required to be all following
+         * each other.
+         */
+        if (last_ok_mount_point && !strcmp(last_ok_mount_point, fstab->recs[i].mount_point)) {
+            INFO("%s(): skipping fstab dup mountpoint=%s rec[%d].fs_type=%s already mounted.\n", __func__,
+                 last_ok_mount_point, i, fstab->recs[i].fs_type);
+            continue;
+        }
+        /* Hunt down an fstab entry for the same mount point that might succeed */
+        for (j = i;
+             /* We required that fstab entries for the same mountpoint be consecutive */
+             j < fstab->num_entries && !strcmp(fstab->recs[i].mount_point, fstab->recs[j].mount_point);
+             j++) {
+                if (fstab->recs[i].fs_mgr_flags & MF_CHECK) {
+                    check_fs(fstab->recs[j].blk_device, fstab->recs[j].fs_type,
+                             fstab->recs[j].mount_point);
+                }
+                mret = __mount(fstab->recs[j].blk_device, fstab->recs[j].mount_point, &fstab->recs[j]);
+                if (!mret) {
+                    last_ok_mount_point = fstab->recs[j].mount_point;
+                    if (i != j) {
+                        INFO("%s(): some alternate mount worked for mount_point=%s fs_type=%s instead of fs_type=%s\n", __func__,
+                             last_ok_mount_point, fstab->recs[j].fs_type, fstab->recs[i].fs_type);
+                        i = j;   /* We advance the recs index to the working entry */
+                    }
+                    break;
+                } else {
+                    /* back up errno for crypto decisions */
+                    mount_errno = errno;
+                }
+        }
 
         if (!mret) {
             /* Success!  Go get the next one */
             continue;
         }
 
-        /* back up errno as partition_wipe clobbers the value */
-        mount_errno = errno;
         /* mount(2) returned an error, check if it's encryptable and deal with it */
         if (mount_errno != EBUSY && mount_errno != EACCES &&
             (fstab->recs[i].fs_mgr_flags & MF_CRYPT) &&
@@ -658,10 +687,7 @@ int fs_mgr_mount_all(struct fstab *fstab)
             /* Need to mount a tmpfs at this mountpoint for now, and set
              * properties that vold will query later for decrypting
              */
-            if (mount("tmpfs", fstab->recs[i].mount_point, "tmpfs",
-                      MS_NOATIME | MS_NOSUID | MS_NODEV, CRYPTO_TMPFS_OPTIONS) < 0) {
-                ERROR("Cannot mount tmpfs filesystem for encryptable fs at %s error: %s\n",
-                       fstab->recs[i].mount_point, strerror(errno));
+            if (fs_mgr_do_tmpfs_mount(fstab->recs[i].mount_point) < 0) {
                 ++error_count;
                 continue;
             }
@@ -689,12 +715,16 @@ int fs_mgr_mount_all(struct fstab *fstab)
 
 /* If tmp_mount_point is non-null, mount the filesystem there.  This is for the
  * tmp mount we do to check the user password
+ * If multiple fstab entries are to be mounted on "n_name", it will try to mount each one
+ * in turn, and stop on 1st success, or no more match.
  */
 int fs_mgr_do_mount(struct fstab *fstab, char *n_name, char *n_blk_device,
                     char *tmp_mount_point)
 {
     int i = 0;
     int ret = -1;
+    int mount_errors = 0;
+    int first_mount_errno = 0;
     char *m;
 
     if (!fstab) {
@@ -740,19 +770,24 @@ int fs_mgr_do_mount(struct fstab *fstab, char *n_name, char *n_blk_device,
         } else {
             m = fstab->recs[i].mount_point;
         }
-        if (__mount(n_blk_device, m, fstab->recs[i].fs_type,
-                    fstab->recs[i].flags, fstab->recs[i].fs_options)) {
-            ERROR("Cannot mount filesystem on %s at %s options: %s error: %s\n",
-                n_blk_device, m, fstab->recs[i].fs_options, strerror(errno));
-            goto out;
+        if (__mount(n_blk_device, m, &fstab->recs[i])) {
+            if (!first_mount_errno) first_mount_errno = errno;
+            mount_errors++;
+            continue;
         } else {
             ret = 0;
             goto out;
         }
     }
 
-    /* We didn't find a match, say so and return an error */
-    ERROR("Cannot find mount point %s in fstab\n", fstab->recs[i].mount_point);
+    if (mount_errors) {
+        ERROR("Cannot mount filesystem on %s at %s. error: %s\n",
+            n_blk_device, m, strerror(first_mount_errno));
+        ret = -1;
+    } else {
+        /* We didn't find a match, say so and return an error */
+        ERROR("Cannot find mount point %s in fstab\n", fstab->recs[i].mount_point);
+    }
 
 out:
     return ret;
