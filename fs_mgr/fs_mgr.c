@@ -691,6 +691,7 @@ int fs_mgr_mount_all(struct fstab *fstab)
                 ++error_count;
                 continue;
             }
+            last_ok_mount_point = fstab->recs[i].mount_point;
             encryptable = 1;
         } else {
             ERROR("Failed to mount an un-encryptable or wiped partition on"
