@@ -17,6 +17,8 @@
 #ifndef SYSTEM_CORE_INCLUDE_ANDROID_GRAPHICS_H
 #define SYSTEM_CORE_INCLUDE_ANDROID_GRAPHICS_H
 
+#include <stdlib.h>
+
 #include <stdint.h>
 
 #ifdef __cplusplus
