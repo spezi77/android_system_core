@@ -186,7 +186,7 @@ static int64_t curr_time_ms(void)
 static void clear_screen(void)
 {
     gr_color(0, 0, 0, 255);
-    gr_clear();
+    //gr_clear();
 }
 
 #define MAX_KLOG_WRITE_BUF_SZ 256
@@ -669,7 +669,7 @@ static void charger_event_handler(uint32_t /*epevents*/)
         ev_dispatch();
 }
 
-void healthd_mode_charger_init(struct healthd_config* /*config*/)
+/*void healthd_mode_charger_init(struct healthd_config /*config*/ /*)
 {
     int ret;
     struct charger *charger = &charger_state;
@@ -680,7 +680,7 @@ void healthd_mode_charger_init(struct healthd_config* /*config*/)
 
     LOGI("--------------- STARTING CHARGER MODE ---------------\n");
 
-    ret = ev_init(input_callback, charger);
+    ret = ev_init(input_callback, charger); //int ev_init(ev_callback input_cb, void *data);
     if (!ret) {
         epollfd = ev_get_epollfd();
         healthd_register_event(epollfd, charger_event_handler);
@@ -717,4 +717,4 @@ void healthd_mode_charger_init(struct healthd_config* /*config*/)
     charger->next_screen_transition = -1;
     charger->next_key_check = -1;
     charger->next_pwr_check = -1;
-}
+}*/
