@@ -180,29 +180,9 @@ int add_environment(const char *key, const char *val)
         if (ENV[n] == NULL) {
             size_t len = key_len + strlen(val) + 2;
             char *entry = malloc(len);
-            if (!entry) {
-                goto failed_cleanup;
-            }
-            snprintf(entry, len, "%s=%s", key, expanded);
-            free((char *)expanded);
+           snprintf(entry, len, "%s=%s", key, val);
             ENV[n] = entry;
             return 0;
-        } else {
-            char *entry;
-            size_t len = strlen(key);
-            if(!strncmp(ENV[n], key, len) && ENV[n][len] == '=') {
-                len = len + strlen(expanded) + 2;
-                entry = malloc(len);
-                if (!entry) {
-                    goto failed_cleanup;
-                }
-
-                free((char *)ENV[n]);
-                snprintf(entry, len, "%s=%s", key, expanded);
-                free((char *)expanded);
-                ENV[n] = entry;
-                return 0;
-            }
         }
     }
 

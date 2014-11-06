@@ -285,10 +285,11 @@ int main(int argc, char **argv)
         if(write_padding(fd, pagesize, hdr.second_size)) goto fail;
     }
 
-    if(dt_data) {
+/*    if(dt_data) {
         if(write(fd, dt_data, hdr.dt_size) != hdr.dt_size) goto fail;
         if(write_padding(fd, pagesize, hdr.dt_size)) goto fail;
     }
+*/
     return 0;
 
 fail:
