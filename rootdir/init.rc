@@ -200,14 +200,17 @@ on post-fs
     mount rootfs rootfs / shared rec
 
     # We chown/chmod /cache again so because mount is run as root + defaults
-    chown system cache /cache
-    chmod 0770 /cache
+    # chown system cache /cache
+    # chmod 0770 /cache
+    mkdir /data/cache 0771 system cache
+    mkdir /data/cache/recovery 0771 system cache
+    symlink /data/cache /cache
     # We restorecon /cache in case the cache partition has been reset.
     restorecon_recursive /cache
 
     # This may have been created by the recovery system with odd permissions
-    chown system cache /cache/recovery
-    chmod 0770 /cache/recovery
+    # chown system cache /cache/recovery
+    # chmod 0770 /cache/recovery
 
     #change permissions on vmallocinfo so we can grab it from bugreports
     chown root log /proc/vmallocinfo
