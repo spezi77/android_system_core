@@ -266,13 +266,13 @@ static const struct fs_path_config android_files[] = {
      * Do not change. */
     { 02750, AID_ROOT,      AID_INET,      0, "system/bin/netcfg" },
 
+    /* CM's daemonized su doesn't need the setuid bit */
+    { 00755, AID_ROOT,      AID_SHELL,     0, "system/xbin/su" },
     /* the following five files are INTENTIONALLY set-uid, but they
      * are NOT included on user builds. */
-    { 04750, AID_ROOT,      AID_SHELL,     0, "system/xbin/su" },
     { 06755, AID_ROOT,      AID_ROOT,      0, "system/xbin/librank" },
     { 06755, AID_ROOT,      AID_ROOT,      0, "system/xbin/procrank" },
     { 06755, AID_ROOT,      AID_ROOT,      0, "system/xbin/procmem" },
-    { 06755, AID_ROOT,      AID_ROOT,      0, "system/xbin/tcpdump" },
     { 04770, AID_ROOT,      AID_RADIO,     0, "system/bin/pppd-ril" },
 
     /* the following files have enhanced capabilities and ARE included in user builds. */
