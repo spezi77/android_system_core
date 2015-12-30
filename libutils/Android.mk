@@ -70,7 +70,6 @@ LOCAL_MODULE:= libutils
 LOCAL_STATIC_LIBRARIES := liblog
 LOCAL_CFLAGS += $(host_commonCflags)
 LOCAL_LDLIBS += $(host_commonLdlibs)
-LOCAL_C_INCLUDES += external/safe-iop/include
 include $(BUILD_HOST_STATIC_LIBRARY)
 
 
@@ -85,7 +84,6 @@ LOCAL_MODULE:= lib64utils
 LOCAL_STATIC_LIBRARIES := liblog
 LOCAL_CFLAGS += $(host_commonCflags) -m64
 LOCAL_LDLIBS += $(host_commonLdlibs)
-LOCAL_C_INCLUDES += external/safe-iop/include
 include $(BUILD_HOST_STATIC_LIBRARY)
 
 
@@ -130,7 +128,6 @@ $(shell touch $(OUT)/obj/SHARED_LIBRARIES/libtime_genoff_intermediates/export_in
 endif
 
 LOCAL_MODULE:= libutils
-LOCAL_C_INCLUDES += external/safe-iop/include
 include $(BUILD_STATIC_LIBRARY)
 
 # For the device, shared
@@ -143,7 +140,6 @@ LOCAL_SHARED_LIBRARIES := \
         libcutils \
         libdl \
         libcorkscrew
-LOCAL_C_INCLUDES += external/safe-iop/include
 
 ifeq ($(BOARD_USES_QC_TIME_SERVICES),true)
 LOCAL_CFLAGS += -DHAVE_QC_TIME_SERVICES=1
