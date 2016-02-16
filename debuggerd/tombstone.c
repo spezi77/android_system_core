@@ -810,25 +810,7 @@ static int activity_manager_connect() {
 char* engrave_tombstone(pid_t pid, pid_t tid, int signal, uintptr_t abort_msg_address,
         bool dump_sibling_threads, bool quiet, bool* detach_failed,
         int* total_sleep_time_usec) {
-    mkdir(TOMBSTONE_DIR, 0755);
     int fd;
-    if(((fd = open(TOMBSTONE_DIR, O_NOFOLLOW|O_RDONLY)) != -1) ||((fd = open(TOMBSTONE_DIR, O_NOFOLLOW|O_WRONLY)) != -1)){
-        if (fchown(fd, AID_SYSTEM, AID_SYSTEM) < 0){
-            fprintf(stderr, "Unable to chown %s: %s\n", TOMBSTONE_DIR, strerror(errno));
-            close(fd);
-            return NULL;
-        }
-        close(fd);
-    } else {
-            fprintf(stderr, "Unable to open %s: %s\n", TOMBSTONE_DIR, strerror(errno));
-            return NULL;
-    }
-
-    if (selinux_android_restorecon(TOMBSTONE_DIR, 0) == -1) {
-        *detach_failed = false;
-        return NULL;
-    }
-
     char* path = find_and_open_tombstone(&fd);
     if (!path) {
         *detach_failed = false;
