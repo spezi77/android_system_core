@@ -44,6 +44,7 @@ int android_set_ioprio(int pid __android_unused, IoSchedClass clazz __android_un
     }
     return 0;
 }
+#endif
 
 int android_get_ioprio(int pid __android_unused, IoSchedClass *clazz, int *ioprio) {
 #if defined(__ANDROID__)
@@ -57,6 +58,7 @@ int android_get_ioprio(int pid __android_unused, IoSchedClass *clazz, int *iopri
     *ioprio = (rc & 0xff);
     return 0;
 }
+#endif
 
 static void __initialize_rtio(void) {
     if (!access("/sys/fs/cgroup/bfqio/tasks", W_OK) ||
