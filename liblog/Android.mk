@@ -53,6 +53,8 @@ else
 liblog_target_sources += log_read_kern.c
 endif
 
+liblog_sources += log_event_write.c
+
 # Shared and static library for host
 # ========================================================
 LOCAL_MODULE := liblog
